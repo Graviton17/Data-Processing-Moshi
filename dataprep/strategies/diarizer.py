@@ -62,7 +62,8 @@ class PyannoteDiarizer(Diarizer):
         try:
             pipeline = Pipeline.from_pretrained(self.model, token=token)
         except TypeError:
-            pipeline = Pipeline.from_pretrained(self.model, token=token)
+            # Older pyannote.audio (<3.1) uses the legacy `use_auth_token` kwarg.
+            pipeline = Pipeline.from_pretrained(self.model, **{"use_auth_token": token})
         if pipeline is None:
             raise RuntimeError(
                 f"Could not load pyannote pipeline {self.model!r}. Check the model "
