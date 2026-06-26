@@ -1,12 +1,16 @@
 """Audio I/O and DSP helpers.
 
-Loading uses ``sphn`` (same lib moshi-finetune uses) when available, falling
-back to ``soundfile``. Heavy imports are local so this module stays importable
-for the pure-logic helpers (energy / RMS) even without audio libs installed.
+Loading tries ``sphn`` (same lib moshi-finetune uses), then ``soundfile``, then
+falls back to **ffmpeg**, which decodes formats libsndfile can't (mp3/m4a/webm/
+opus, or files with a misleading ``.wav`` extension). Heavy imports are local so
+this module stays importable for the pure-logic helpers even without audio libs.
 """
 
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -14,24 +18,67 @@ import numpy as np
 from ..models import AudioBuffer
 
 
-def load_audio(path: str | Path, target_sr: int | None = None, mono: bool = True) -> AudioBuffer:
-    """Load an audio file as an :class:`AudioBuffer`, optionally resampling."""
-    path = str(path)
+def _load_libsndfile(path: str) -> AudioBuffer:
     try:
         import sphn
 
         samples, sr = sphn.read(path)  # (channels, samples), float32
+        return AudioBuffer(samples=np.asarray(samples, dtype=np.float32), sample_rate=sr)
     except Exception:
         import soundfile as sf
 
         data, sr = sf.read(path, always_2d=True)  # (samples, channels)
-        samples = data.T.astype(np.float32)
+        return AudioBuffer(samples=data.T.astype(np.float32), sample_rate=sr)
 
-    if mono and samples.shape[0] > 1:
-        samples = samples.mean(axis=0, keepdims=True)
 
-    buf = AudioBuffer(samples=samples.astype(np.float32), sample_rate=sr)
-    if target_sr is not None and sr != target_sr:
+def _ffprobe(path: str) -> tuple[int, int]:
+    """Return (sample_rate, channels) of the first audio stream via ffprobe."""
+    cmd = [
+        "ffprobe", "-v", "error", "-select_streams", "a:0",
+        "-show_entries", "stream=sample_rate,channels", "-of", "json", path,
+    ]
+    out = subprocess.run(cmd, capture_output=True, text=True, check=True).stdout
+    stream = json.loads(out)["streams"][0]
+    return int(stream["sample_rate"]), int(stream["channels"])
+
+
+def _load_ffmpeg(path: str, target_sr: int | None, mono: bool) -> AudioBuffer:
+    """Decode any ffmpeg-readable file to float32 PCM. Applies mono/resample
+    inline, so the returned buffer already honours ``target_sr``/``mono``."""
+    if shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None:
+        raise RuntimeError(
+            "ffmpeg/ffprobe not found; cannot decode this file. Install ffmpeg "
+            "or convert the file to a standard PCM WAV first."
+        )
+    src_sr, src_ch = _ffprobe(path)
+    out_sr = target_sr or src_sr
+    out_ch = 1 if mono else src_ch
+    cmd = [
+        "ffmpeg", "-nostdin", "-v", "error", "-i", path,
+        "-f", "f32le", "-acodec", "pcm_f32le",
+        "-ac", str(out_ch), "-ar", str(out_sr), "-",
+    ]
+    raw = subprocess.run(cmd, capture_output=True, check=True).stdout
+    data = np.frombuffer(raw, dtype=np.float32).copy()
+    if out_ch > 1:
+        data = data.reshape(-1, out_ch).T  # (channels, samples)
+    else:
+        data = data[None, :]
+    return AudioBuffer(samples=data, sample_rate=out_sr)
+
+
+def load_audio(path: str | Path, target_sr: int | None = None, mono: bool = True) -> AudioBuffer:
+    """Load an audio file as an :class:`AudioBuffer`, optionally resampling."""
+    path = str(path)
+    try:
+        buf = _load_libsndfile(path)
+    except Exception:
+        # ffmpeg fallback already applies mono + resample.
+        return _load_ffmpeg(path, target_sr, mono)
+
+    if mono and buf.num_channels > 1:
+        buf = AudioBuffer(samples=buf.samples.mean(axis=0, keepdims=True), sample_rate=buf.sample_rate)
+    if target_sr is not None and buf.sample_rate != target_sr:
         buf = resample(buf, target_sr)
     return buf
 
