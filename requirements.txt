@@ -14,7 +14,8 @@ pyloudnorm>=0.1.1     # EBU R128 loudness normalisation
 
 # --- ML stages (heavy; need a CUDA-capable env) ---
 torch==2.6            # pinned to match moshi-finetune
-torchaudio            # resampling
+torchaudio==2.6       # MUST equal torch's version & CUDA build, else the compiled
+                      # extension fails to load (e.g. libcudart.so.13 not found)
 demucs>=4.0           # localized music/noise suppression (htdemucs)
 pyannote.audio>=3.1   # diarization + channel-purity re-diarization
 whisperx>=3.1         # transcription + forced word alignment
