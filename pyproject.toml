@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dataprep"
+version = "0.1.0"
+description = "Raw mono conversations -> Moshi two-stream finetuning dataset"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Heavy ML stack for the actual processing stages.
+full = [
+    "sphn==0.1.12",
+    "soundfile>=0.12",
+    "pyloudnorm>=0.1.1",
+    "torch==2.6",
+    "torchaudio",
+    "demucs>=4.0",
+    "pyannote.audio>=3.1",
+    "whisperx>=3.1",
+]
+dev = ["pytest>=7"]
+
+[project.scripts]
+dataprep = "dataprep.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["dataprep*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

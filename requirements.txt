@@ -1,0 +1,23 @@
+# dataprep requirements
+# Install everything:        python -m pip install -r requirements.txt
+# Pure-logic / tests only:   python -m pip install -r requirements-core.txt
+# (see requirements-core.txt for the no-GPU subset)
+
+# --- Core (always required) ---
+numpy>=1.24
+pyyaml>=6.0
+
+# --- Audio I/O & DSP ---
+sphn==0.1.12          # same version moshi-finetune uses
+soundfile>=0.12       # fallback I/O when sphn is unavailable
+pyloudnorm>=0.1.1     # EBU R128 loudness normalisation
+
+# --- ML stages (heavy; need a CUDA-capable env) ---
+torch==2.6            # pinned to match moshi-finetune
+torchaudio            # resampling
+demucs>=4.0           # localized music/noise suppression (htdemucs)
+pyannote.audio>=3.1   # diarization + channel-purity re-diarization
+whisperx>=3.1         # transcription + forced word alignment
+
+# --- Dev / tests ---
+pytest>=7

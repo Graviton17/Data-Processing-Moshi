@@ -1,0 +1,46 @@
+# dataprep configuration. All values shown are the defaults from dataprep/config.py.
+sample_rate: 24000          # Mimi operates at 24 kHz
+device: cuda
+cache_dir: .cache
+out_dir: dataset
+
+diarization:
+  model: pyannote/speaker-diarization-3.1
+  min_speakers: 1
+  max_speakers: 2           # ask pyannote for at most 2; extras dropped at chunk level
+  hf_token_env: HF_TOKEN    # env var holding your HuggingFace token
+
+music:
+  enabled: true
+  music_ratio_threshold: 0.5   # (drums+bass+other)/vocals energy; above -> substitute vocals stem
+  demucs_model: htdemucs
+  analysis_window_sec: 1.0
+
+filters:
+  max_speakers_per_chunk: 2    # >2 simultaneous speakers -> drop that chunk
+  max_turn_seconds: 60.0       # single-speaker turn >60s -> drop that chunk
+  turn_merge_gap_sec: 0.5      # gaps below this merge into one continuous turn
+  min_variant_speech_sec: 2.0  # drop whole file if a speaker has less speech than this
+
+cleanup:
+  loudness_lufs: -23.0
+  peak_limit_db: -1.0
+  pre_emphasis: false          # keep OFF for Mimi
+  remove_dc_offset: true
+
+augment:
+  channel_swap: true           # emit both A=agent and B=agent variants
+
+purity:
+  enabled: true
+  max_crosstalk_ratio: 0.15    # re-diarized channel crosstalk above this -> quarantine variant
+  quarantine_dir: quarantine
+
+transcribe:
+  model: large-v3
+  language: en
+  align: true
+  main_label: SPEAKER_MAIN     # agent channel label (interleaver ties text to this)
+  user_label: SPEAKER_OTHER
+  batch_size: 16
+  compute_type: float16
