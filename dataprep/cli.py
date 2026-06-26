@@ -25,6 +25,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--out", type=Path, default=None, help="Override output directory")
     parser.add_argument("--cache", type=Path, default=None, help="Override cache directory")
     parser.add_argument("--device", default=None, help="Override device (cuda/cpu)")
+    parser.add_argument("--num-gpus", type=int, default=None,
+                        help="GPUs to use. Default: auto-detect and use all "
+                             "(data-parallel sharding). Set 1 to force single process.")
     parser.add_argument("--manifest-only", action="store_true",
                         help="Only (re)build the manifest from --out")
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -47,7 +50,7 @@ def main(argv: list[str] | None = None) -> None:
 
     if not args.raw:
         parser.error("--raw is required unless --manifest-only is set")
-    process_dir(config, args.raw)
+    process_dir(config, args.raw, num_gpus=args.num_gpus)
 
 
 if __name__ == "__main__":

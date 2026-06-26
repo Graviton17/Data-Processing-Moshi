@@ -15,6 +15,11 @@ def build_manifest(out_dir: str | Path, manifest_name: str = "dataset.jsonl") ->
     out_dir = Path(out_dir)
     wavs = sorted(p for p in out_dir.glob("*.wav") if p.with_suffix(".json").exists())
 
+    manifest_path = out_dir / manifest_name
+    if not wavs:
+        manifest_path.write_text("")
+        return manifest_path
+
     try:
         import sphn
 
@@ -27,7 +32,6 @@ def build_manifest(out_dir: str | Path, manifest_name: str = "dataset.jsonl") ->
             info = sf.info(str(p))
             durations.append(info.frames / info.samplerate)
 
-    manifest_path = out_dir / manifest_name
     with open(manifest_path, "w") as f:
         for wav, dur in zip(wavs, durations):
             if dur is None:

@@ -127,8 +127,39 @@ Useful flags:
 | `--out DIR` | Override output directory (default `dataset/`). |
 | `--cache DIR` | Override cache directory (default `.cache/`). |
 | `--device cuda\|cpu` | Override compute device. |
+| `--num-gpus N` | GPUs to use. **Default: auto-detect and use all.** Set `1` to force single process. |
 | `--manifest-only` | Just (re)build `dataset.jsonl` from an existing `--out` dir. |
 | `-v` | Verbose logging (per-file stage timings + drop reasons). |
+
+#### Multi-GPU (e.g. Kaggle 2x T4)
+
+By default the runner **auto-detects all GPUs and shards the files across them**
+(data parallelism): one worker process per GPU, each pinned via
+`CUDA_VISIBLE_DEVICES`, each running the full pipeline on its slice of the
+files. On 2 GPUs that's ~2x throughput with no extra flags:
+
+```sh
+python -m dataprep.cli --raw raw_audio --config config.yaml -v   # uses both T4s
+python -m dataprep.cli --raw raw_audio --num-gpus 1              # force single GPU
+```
+
+From a Kaggle notebook (Python API):
+
+```python
+from dataprep.config import Config
+from dataprep.runner import process_dir, detect_num_gpus
+
+print("GPUs:", detect_num_gpus())          # -> 2 on a 2x T4 instance
+cfg = Config.from_yaml("config.yaml")
+process_dir(cfg, "raw_audio")              # num_gpus=None -> use all
+```
+
+Sharding is by whole file, so each GPU loads its own copy of the diarization /
+Demucs / WhisperX models. Outputs are keyed by file stem, so shards never
+collide, and the `dataset.jsonl` manifest is built once after all workers finish.
+*(Note: the heavy models are inference-only here — model-parallel splitting a
+single model across GPUs would not help; file-level data parallelism is the
+right tool.)*
 
 Re-running is cheap: diarization and transcription are cached per file under
 `.cache/`, so only changed stages re-compute.
