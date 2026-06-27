@@ -4,12 +4,12 @@ Each line: ``{"path": "<relative wav>", "duration": <seconds>}``. Only WAVs that
 have a sibling ``.json`` transcript are included (quarantined variants are
 skipped).
 
-sphn 0.2.0 API note
--------------------
-sphn 0.1.x exposed ``sphn.durations([...])`` as a batch helper.
-sphn 0.2.0 removed this convenience function; duration must now be read
-per-file via ``sphn.read()`` (which returns ``(samples, sample_rate)``).
-The soundfile fallback path is unchanged.
+sphn API note
+-------------
+We pin sphn==0.1.12 (sphn 0.2.0 was never published). Duration is read
+per-file via ``sphn.read()`` (returns ``(ndarray, sample_rate)``), which works
+on every published sphn release, so no batch helper is needed. The soundfile
+fallback path is unchanged.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from pathlib import Path
 
 
 def _duration_sphn(path: str) -> float:
-    """Read duration via sphn 0.2.x (per-file read, no batch helper)."""
+    """Read duration via sphn (per-file read; works on all published releases)."""
     import sphn
     samples, sr = sphn.read(path)  # returns (ndarray, int)
     # samples shape is (channels, num_samples) or (num_samples,)

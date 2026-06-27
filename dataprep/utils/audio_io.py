@@ -5,14 +5,13 @@ falls back to **ffmpeg**, which decodes formats libsndfile can't (mp3/m4a/webm/
 opus, or files with a misleading ``.wav`` extension). Heavy imports are local so
 this module stays importable for the pure-logic helpers even without audio libs.
 
-sphn 0.2.0 API notes
---------------------
+sphn 0.1.12 API notes
+---------------------
+* We pin sphn==0.1.12 (the version moshi / moshi-finetune use). NOTE: sphn 0.2.0
+  was never published to PyPI -- only 0.1.12 and 0.2.1 exist.
 * ``sphn.read(path)`` returns ``(ndarray, int)`` where ndarray shape is
   ``(channels, samples)`` for multi-channel or ``(samples,)`` for mono.
-  This is unchanged from 0.1.x.
-* ``sphn.write_wav(path, samples, sr)`` signature is unchanged.
-* The batch helper ``sphn.durations([...])`` was removed in 0.2.0 -- use
-  per-file reads instead (see manifest.py).
+* ``sphn.write_wav(path, samples, sr)`` writes a float32 PCM WAV.
 
 soundfile 0.14.0 note
 ---------------------

@@ -6,23 +6,30 @@ build-backend = "setuptools.build_meta"
 name = "dataprep"
 version = "0.1.0"
 description = "Raw mono conversations -> Moshi two-stream finetuning dataset"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 dependencies = [
-    # numpy>=2.5 requires Python>=3.12; use numpy<2.5 if on Python 3.10/3.11
-    "numpy>=2.4,<2.6",
+    "numpy>=2.1",               # whisperx floor; torch 2.8 is fine with numpy 2.x
     "pyyaml>=6.0.3",
 ]
 
 [project.optional-dependencies]
 # Heavy ML stack for the actual processing stages.
+# Install the torch trio + torchcodec from a CUDA index FIRST, e.g.:
+#   pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 torchcodec==0.7.0 \
+#     --index-url https://download.pytorch.org/whl/cu126
 full = [
-    # sphn 0.2.0: cmake<4 must be pre-installed (Opus build incompatibility with CMake 4.x)
-    # pip install 'cmake<4' && CMAKE=$(which cmake) pip install sphn==0.2.0
-    "sphn==0.2.0",
-    "soundfile>=0.14.0",        # 0.14.0: dropped Python<=3.9, added type annotations
+    # sphn 0.2.0 was never published (only 0.1.12 / 0.2.1). 0.1.12 matches moshi.
+    # cmake<4 must be pre-installed (Opus build breaks on CMake 4.x):
+    #   pip install 'cmake<4' && CMAKE=$(which cmake) pip install sphn==0.1.12
+    "sphn==0.1.12",
+    "soundfile>=0.14.0",        # dropped Python<=3.9, added type annotations
     "pyloudnorm>=0.2.0",
-    "torch==2.6",
-    "torchaudio==2.6.0",
+    # pyannote.audio 4.x HARD-PINS this exact trio + torchcodec; whisperx needs torch~=2.8.
+    # torch 2.6 is unsatisfiable for this stack.
+    "torch==2.8.0",
+    "torchaudio==2.8.0",
+    "torchvision==0.23.0",      # the torch-2.8 build (0.21.0 is torch 2.6 -> ABI errors)
+    "torchcodec==0.7.0",        # pyannote 4.x audio backend; 0.7 <-> torch 2.8. Needs ffmpeg.
     # demucs: original Meta repo is unmaintained (facebookresearch/demucs).
     # demucs-infer is a maintained inference-only fork with PyTorch 2.x support
     # and an identical public API (get_model / apply_model / model.sources).
@@ -30,12 +37,13 @@ full = [
     # pyannote.audio 4.x: breaking changes vs 3.x
     #   - new model: pyannote/speaker-diarization-community-1 (accept licence on HF)
     #   - output API: (turn, speaker) 2-tuples, not itertracks() 3-tuples
-    #   - sox/soundfile I/O backends removed; only ffmpeg or in-memory audio
+    #   - sox/soundfile I/O backends removed; torchcodec + ffmpeg only
     "pyannote.audio>=4.0.5",
-    # whisperx: do NOT pin 3.1.x (all 3.1.x releases on PyPI are yanked)
-    "whisperx>=3.5.0",
+    # whisperx 3.8.x requires torch~=2.8, pyannote>=4.0, ctranslate2>=4.5, faster-whisper>=1.2.
+    # Do NOT pin 3.1.x (all 3.1.x releases on PyPI are yanked).
+    "whisperx>=3.8.0",
 ]
-dev = ["pytest>=9.0"]
+dev = ["pytest>=8.0"]
 
 [project.scripts]
 dataprep = "dataprep.cli:main"

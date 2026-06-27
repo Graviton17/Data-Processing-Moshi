@@ -1,43 +1,48 @@
 # dataprep requirements
-# Install everything:        python -m pip install -r requirements.txt
-# Pure-logic / tests only:   python -m pip install -r requirements-core.txt
 #
-# Python: >=3.10 required (pyannote.audio 4.x hard requirement)
-# Python: >=3.12 required for numpy>=2.5; use numpy<2.5 if on 3.10/3.11
+# Heavy ML stack needs a CUDA box. Install the torch trio from the CUDA index
+# FIRST, then the rest. See setup_env.sh for the one-shot reproducible install.
 #
-# Last verified: 2026-06-27
+# Python: >=3.10, <3.14 (whisperx upper bound). 3.12 recommended.
+#
+# Last verified against PyPI: 2026-06-27
 
 # --- Core (always required) ---
-numpy>=2.4,<2.6           # 2.5.0 released 2026-06-21; requires Python>=3.12
-                           # use numpy>=1.24,<2.5 if on Python 3.10/3.11
-pyyaml>=6.0.3              # 6.0.3 latest (Sep 2025), Python>=3.8
+numpy>=2.1                 # whisperx requires numpy>=2.1.0; torch 2.8 is fine with numpy 2.x
+pyyaml>=6.0.3              # 6.0.3 latest, Python>=3.8
 
 # --- Audio I/O & DSP ---
-# sphn 0.2.0 released Apr 2025 — requires cmake<4 pre-installed:
-#   pip install 'cmake<4' && CMAKE=$(which cmake) pip install sphn==0.2.0
-sphn==0.2.0                # updated from 0.1.12; api-compatible with moshi
-soundfile>=0.14.0          # 0.14.0 released 2026-06-06; dropped Python<=3.9
+# NOTE: sphn 0.2.0 was NEVER published to PyPI (only 0.1.12 and 0.2.1 exist).
+# 0.1.12 is the version moshi / moshi-finetune use, so we stay on it for codec parity.
+# Build note: requires cmake<4 pre-installed (Opus build breaks on CMake 4.x):
+#   pip install 'cmake<4' && CMAKE=$(which cmake) pip install sphn==0.1.12
+sphn==0.1.12
+soundfile>=0.14.0          # 0.14.0 dropped Python<=3.9
 pyloudnorm>=0.2.0          # 0.2.0 latest
 
+# --- Torch trio (MUST all share the same +cuXXX build) ---
+# pyannote.audio 4.x HARD-PINS torch==2.8.0 / torchaudio==2.8.0 / torchcodec==0.7.0,
+# and whisperx requires torch~=2.8.0 -- so torch 2.6 is unsatisfiable here.
+# Install these from the CUDA index (cu126 shown; use cu128 for newer drivers):
+#   pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 torchcodec==0.7.0 \
+#     --index-url https://download.pytorch.org/whl/cu126
+torch==2.8.0
+torchaudio==2.8.0
+torchvision==0.23.0        # 0.23.0 is the torch-2.8 build (0.21.0 = torch 2.6 -> ABI errors)
+torchcodec==0.7.0          # pyannote 4.x audio backend; 0.7 <-> torch 2.8 (0.8 segfaults). Needs ffmpeg.
+
 # --- ML stages (heavy; need a CUDA-capable env) ---
-# OPTION A (recommended): keep moshi-finetune alignment
-torch==2.6
-torchaudio==2.6.0
-
-# OPTION B: latest PyTorch stack (verify moshi-finetune compat first)
-# pip install torch==2.11.0 torchaudio==2.11.0 \
-#   --index-url https://download.pytorch.org/whl/cu128
-
-# demucs: original Meta repo unmaintained; use inference-only fork
-# Drop-in replacement for htdemucs separation, PyTorch 2.x compatible
+# demucs: original Meta repo unmaintained; use the inference-only fork (same API).
 demucs-infer>=4.1.2        # maintained fork; replaces demucs>=4.0
 
-pyannote.audio>=4.0.5      # 4.0.5 latest (2026-06-22); Python>=3.10 required
-                            # Breaking change vs 3.x: new model IDs on HuggingFace
-                            # Accept pyannote/speaker-diarization-community-1 license
+pyannote.audio>=4.0.5      # 4.0.5 latest (2026-06-22); Python>=3.10 required.
+                            # Pins the torch trio + torchcodec above. v4 breaking changes
+                            # vs 3.x: new model IDs, (turn, speaker) 2-tuple output API,
+                            # torchcodec/ffmpeg-only I/O (sox/soundfile backends removed).
+                            # Accept pyannote/speaker-diarization-community-1 licence on HF.
 
-whisperx>=3.5.0             # 3.5.0 latest (2026-03-10)
-                            # WARNING: do NOT pin any 3.1.x — those are yanked
+whisperx>=3.8.0            # 3.8.x requires torch~=2.8, pyannote>=4.0, ctranslate2>=4.5,
+                            # faster-whisper>=1.2. Do NOT pin any 3.1.x (yanked).
 
 # --- Dev / tests ---
-pytest>=9.0                 # 9.0.2 latest (2026-04-07)
+pytest>=8.0
