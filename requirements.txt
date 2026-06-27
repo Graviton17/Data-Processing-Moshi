@@ -23,8 +23,11 @@ torch==2.6            # pinned to match moshi-finetune
 torchaudio==2.6       # resampling; version must equal torch's
 torchvision==0.21     # transitive (pyannote->lightning->torchmetrics); pin to torch 2.6
 demucs>=4.0           # localized music/noise suppression (htdemucs)
-pyannote.audio>=3.1   # diarization + channel-purity re-diarization
-whisperx>=3.1         # transcription + forced word alignment
+# pyannote >= 4.0 is required: 3.x calls hf_hub_download(use_auth_token=...),
+# a kwarg removed in huggingface_hub 1.0. 4.x uses the modern token= API and
+# reads HF_TOKEN from the environment. (No hub cap needed; 4.x supports hub 1.x.)
+pyannote.audio>=4.0   # diarization + channel-purity re-diarization
+whisperx>=3.8         # transcription + forced word alignment (needs pyannote 4.x)
 
 # --- Dev / tests ---
 pytest>=7

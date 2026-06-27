@@ -15,7 +15,7 @@ class Diarizer(ABC):
 
 
 class PyannoteDiarizer(Diarizer):
-    """Wraps ``pyannote.audio`` 3.x speaker-diarization pipeline.
+    """Wraps a ``pyannote.audio`` >= 4.0 speaker-diarization pipeline.
 
     The model is loaded lazily on first use and cached on the instance, so
     constructing the strategy is cheap and import-safe without torch installed.
@@ -56,27 +56,26 @@ class PyannoteDiarizer(Diarizer):
         from pyannote.audio import Pipeline
 
         token = self._resolve_token()
-        # Also expose the token via the env vars huggingface_hub reads directly,
-        # so auth works regardless of which from_pretrained kwarg the installed
-        # pyannote.audio expects.
+        # huggingface_hub resolves auth in this order: explicit `token=` arg ->
+        # HF_TOKEN env var -> cached `hf auth login`. Export the token to the env
+        # too so the rest of the stack (model + embedding downloads) picks it up.
         if token:
             os.environ.setdefault("HF_TOKEN", token)
             os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", token)
-        # pyannote.audio renamed `use_auth_token` -> `token` in 3.1. Try the new
-        # kwarg first, then the legacy one. A *version skew* (old pyannote forcing
-        # `use_auth_token` into a new huggingface_hub that dropped it) makes both
-        # raise TypeError with no working kwarg -- detect that and explain it.
+        # pyannote.audio >= 4.0 takes the modern `token=` kwarg and forwards it to
+        # huggingface_hub. Passing None is fine -- the hub then falls back to the
+        # HF_TOKEN env / cached login. Older pyannote (3.x) only knows
+        # `use_auth_token` and is incompatible with huggingface_hub >= 1.0; if such
+        # a stale build is installed, `token=` raises TypeError -- surface a fix.
         try:
-            pipeline = Pipeline.from_pretrained(self.model, token=token)
-        except TypeError:
-            try:
-                pipeline = Pipeline.from_pretrained(self.model, **{"use_auth_token": token})
-            except TypeError as exc:
-                raise RuntimeError(
-                    "pyannote.audio and huggingface_hub are version-incompatible: "
-                    f"neither `token` nor `use_auth_token` works ({exc}). Upgrade "
-                    'pyannote.audio: pip install -U "pyannote.audio>=3.3"'
-                ) from exc
+            pipeline = Pipeline.from_pretrained(self.model, token=token or None)
+        except TypeError as exc:
+            raise RuntimeError(
+                "Pipeline.from_pretrained() rejected the `token` kwarg, which means "
+                "a stale pyannote.audio 3.x is installed (incompatible with "
+                f"huggingface_hub >= 1.0): {exc}. Upgrade and RESTART the kernel: "
+                'pip install -U "pyannote.audio>=4.0"'
+            ) from exc
         if pipeline is None:
             raise RuntimeError(
                 f"Could not load pyannote pipeline {self.model!r}. Check the model "
