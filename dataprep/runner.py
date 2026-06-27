@@ -148,22 +148,35 @@ def process_dir(config: Config, raw_dir: str | Path, num_gpus: int | None = None
         num_gpus = detect_num_gpus()
     use_gpus = num_gpus if num_gpus and num_gpus > 1 else 1
 
+    # Parallelism is data-parallel *by file*: a shard per GPU. With fewer files
+    # than GPUs (e.g. a single long file) the extra GPUs sit idle -- to use them,
+    # supply more files (or pre-split the long file). actual_gpus reflects the
+    # path actually taken, not the number of GPUs detected.
     if use_gpus > 1 and len(files) > 1:
-        log.info("Running data-parallel across %d GPUs", use_gpus)
+        actual_gpus = min(use_gpus, len(files))
+        log.info("Running data-parallel across %d GPUs", actual_gpus)
         report = _process_multigpu(config, files, use_gpus)
     else:
+        actual_gpus = 1
         pipeline = build_pipeline(config)
-        log.info("Running single-process | %s", pipeline)
+        if use_gpus > 1 and len(files) <= 1:
+            log.info(
+                "Running single-process: %d file(s) but %d GPUs detected -- "
+                "file-sharded parallelism needs >=2 files to use multiple GPUs | %s",
+                len(files), use_gpus, pipeline,
+            )
+        else:
+            log.info("Running single-process | %s", pipeline)
         report = _process_files(pipeline, config, files, tag="single")
 
     manifest_path = build_manifest(out_dir)
     report["manifest"] = str(manifest_path)
-    report["num_gpus_used"] = use_gpus
+    report["num_gpus_used"] = actual_gpus
     with open(out_dir / "report.json", "w") as f:
         json.dump(report, f, indent=2)
     log.info(
         "Done. kept=%d dropped=%d variants=%d quarantined=%d (gpus=%d) -> %s",
         report["n_kept"], report["n_dropped"], report["n_variants"],
-        report["n_quarantined"], use_gpus, manifest_path,
+        report["n_quarantined"], actual_gpus, manifest_path,
     )
     return report

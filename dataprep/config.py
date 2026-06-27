@@ -32,6 +32,10 @@ class MusicConfig:
     # demucs-infer exposes the same model names as the original demucs package.
     demucs_model: str = "htdemucs"
     analysis_window_sec: float = 1.0
+    # Separation is done in time-chunks offloaded to CPU to bound GPU memory on
+    # long files. Lower this if you still OOM on a small GPU; raise for fewer
+    # chunk-boundary seams on a large GPU.
+    separation_chunk_sec: float = 30.0
 
 
 @dataclass

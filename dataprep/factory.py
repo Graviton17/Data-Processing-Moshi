@@ -41,7 +41,11 @@ def build_pipeline(config: Config) -> Pipeline:
         exclusive=config.diarization.exclusive,  # new: forward exclusive flag
     )
     separator = (
-        DemucsSeparator(model=config.music.demucs_model, device=device)
+        DemucsSeparator(
+            model=config.music.demucs_model,
+            device=device,
+            chunk_seconds=config.music.separation_chunk_sec,
+        )
         if config.music.enabled
         else NullSeparator()
     )
