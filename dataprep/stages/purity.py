@@ -49,10 +49,13 @@ class PurityStage(Stage):
                 "user": crosstalk.get(v.user_speaker, 0.0),
             }
             worst = max(v.purity.values())
-            if worst > cfg.max_crosstalk_ratio:
+            v.purity_pass = worst <= cfg.max_crosstalk_ratio
+            # enforce=True: drop/quarantine failing variants. enforce=False:
+            # keep them and let WriteOutputs record the crosstalk as metadata.
+            if cfg.enforce and not v.purity_pass:
                 v.dropped = True
                 v.drop_reason = f"channel crosstalk {worst:.2f} > {cfg.max_crosstalk_ratio}"
 
-        if not ctx.active_variants():
+        if cfg.enforce and not ctx.active_variants():
             ctx.drop("all variants quarantined by purity check")
         return ctx

@@ -41,8 +41,12 @@ augment:
 
 purity:
   enabled: true
-  max_crosstalk_ratio: 0.15    # re-diarized channel crosstalk above this -> quarantine variant
+  max_crosstalk_ratio: 0.15    # re-diarized channel crosstalk above this -> fails purity
   quarantine_dir: quarantine
+  # enforce: false -> keep every variant in the main dataset and record the
+  # crosstalk/pass result as metadata in each output JSON (nothing is dropped for
+  # purity reasons). Set true to drop failing variants into quarantine_dir instead.
+  enforce: false
 
 transcribe:
   model: large-v3

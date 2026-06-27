@@ -64,6 +64,11 @@ class PurityConfig:
     enabled: bool = True
     max_crosstalk_ratio: float = 0.15
     quarantine_dir: str = "quarantine"
+    # enforce=True (default): variants over the crosstalk threshold are dropped
+    # and routed to quarantine_dir. enforce=False: keep every variant in the main
+    # dataset and only record the crosstalk/pass result as metadata in the output
+    # JSON (nothing is dropped for purity reasons).
+    enforce: bool = True
 
 
 @dataclass

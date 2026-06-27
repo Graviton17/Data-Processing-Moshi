@@ -93,6 +93,7 @@ class StreamVariant:
     dropped: bool = False
     drop_reason: str | None = None
     purity: dict[str, float] = field(default_factory=dict)
+    purity_pass: bool = True    # False if channel crosstalk exceeded the threshold
 
 
 @dataclass
