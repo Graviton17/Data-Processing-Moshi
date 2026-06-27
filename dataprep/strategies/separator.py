@@ -2,6 +2,12 @@
 
 Used for localized music/noise suppression: we keep the ``vocals`` stem and use
 the rest only to *measure* how much non-speech energy is present.
+
+NOTE: the upstream ``demucs`` package (facebookresearch/demucs) is no longer
+maintained.  This file targets ``demucs-infer`` -- a maintained inference-only
+fork with PyTorch 2.x support and an identical public API.  Install with:
+
+    pip install demucs-infer>=4.1.2
 """
 
 from __future__ import annotations
@@ -29,17 +35,41 @@ class NullSeparator(SourceSeparator):
 
 
 class DemucsSeparator(SourceSeparator):
-    """Wraps Demucs (htdemucs). Model loaded lazily and reused across files."""
+    """Wraps Demucs (htdemucs) via the ``demucs-infer`` package.
 
-    def __init__(self, model: str = "htdemucs", device: str = "cuda"):
+    Model is loaded lazily and reused across files.  ``demucs-infer`` is a
+    drop-in inference replacement for the unmaintained ``demucs`` package and
+    exposes the same ``get_model`` / ``apply_model`` API.
+    """
+
+    def __init__(
+        self,
+        model: str = "htdemucs",
+        device: str = "cuda",
+        chunk_seconds: float = 30.0,
+    ):
         self.model_name = model
         self.device = device
+        # Separate the file in time-chunks and offload each to CPU, so GPU memory
+        # is bounded by one chunk instead of the whole file. A 68-min file would
+        # otherwise need a single ~5.7 GB output tensor (4 stems x 2 ch x len) and
+        # OOM a 16 GB T4. demucs already overlap-adds *within* each apply_model
+        # call, so only the chunk boundaries lack overlap (negligible for the
+        # downstream energy-ratio measurement and vocal substitution).
+        self.chunk_seconds = chunk_seconds
         self._model: Any = None
 
     def _load(self):
         if self._model is not None:
             return self._model
-        from demucs.pretrained import get_model
+        try:
+            # demucs-infer (maintained fork) -- preferred
+            from demucs.pretrained import get_model
+        except ImportError as exc:
+            raise ImportError(
+                "Could not import demucs.pretrained. "
+                "Install the maintained inference fork: pip install demucs-infer>=4.1.2"
+            ) from exc
 
         model = get_model(self.model_name)
         model.to(self.device)
@@ -60,18 +90,33 @@ class DemucsSeparator(SourceSeparator):
         wav = torch.from_numpy(buf.samples)
         if wav.shape[0] == 1:
             wav = wav.repeat(2, 1)
+        # Global normalisation (same stats as before, computed once on CPU).
         ref = wav.mean(0)
-        wav = (wav - ref.mean()) / (ref.std() + 1e-8)
+        ref_mean = float(ref.mean())
+        ref_std = float(ref.std()) + 1e-8
+        wav = (wav - ref_mean) / ref_std
+
+        total = wav.shape[1]
+        chunk = max(1, int(self.chunk_seconds * sr))
+        names = list(model.sources)
+        # Accumulate only the mono stems we need (4 x len), not the full
+        # 4 x 2 x len tensor, to keep host memory modest too.
+        mono_acc = {name: np.empty(total, dtype=np.float32) for name in names}
 
         with torch.no_grad():
-            sources = apply_model(
-                model, wav[None].to(self.device), device=self.device, progress=False
-            )[0]
-        sources = sources * ref.std() + ref.mean()
-        sources = sources.cpu().numpy().astype(np.float32)
+            for start in range(0, total, chunk):
+                end = min(total, start + chunk)
+                seg = wav[:, start:end][None].to(self.device)
+                out = apply_model(model, seg, device=self.device, progress=False)[0]
+                out = out * ref_std + ref_mean            # (sources, ch, n)
+                out_np = out.cpu().numpy().astype(np.float32)
+                for i, name in enumerate(names):
+                    mono_acc[name][start:end] = out_np[i].mean(axis=0)
+                del seg, out, out_np
+                if self.device.startswith("cuda"):
+                    torch.cuda.empty_cache()
 
-        stems: dict[str, AudioBuffer] = {}
-        for name, src in zip(model.sources, sources):
-            mono = src.mean(axis=0, keepdims=True)
-            stems[name] = AudioBuffer(samples=mono, sample_rate=sr)
-        return stems
+        return {
+            name: AudioBuffer(samples=mono_acc[name][None, :], sample_rate=sr)
+            for name in names
+        }

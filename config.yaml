@@ -5,14 +5,22 @@ cache_dir: .cache
 out_dir: dataset
 
 diarization:
-  model: pyannote/speaker-diarization-3.1
+  # Updated from speaker-diarization-3.1 (requires pyannote.audio 3.x, EOL)
+  # to community-1 (requires pyannote.audio >= 4.0, Python >= 3.10).
+  # Accept the licence at: https://hf.co/pyannote/speaker-diarization-community-1
+  model: pyannote/speaker-diarization-community-1
   min_speakers: 1
   max_speakers: 2           # ask pyannote for at most 2; extras dropped at chunk level
   hf_token_env: HF_TOKEN    # env var holding your HuggingFace token
+  # exclusive: true uses output.exclusive_speaker_diarization (non-overlapping turns).
+  # Simpler for STT reconciliation. Default false keeps all overlapping turns.
+  exclusive: false
 
 music:
   enabled: true
   music_ratio_threshold: 0.5   # (drums+bass+other)/vocals energy; above -> substitute vocals stem
+  # demucs-infer exposes the same model names as the original demucs package.
+  # Install: pip install demucs-infer>=4.1.2
   demucs_model: htdemucs
   analysis_window_sec: 1.0
 
@@ -33,8 +41,12 @@ augment:
 
 purity:
   enabled: true
-  max_crosstalk_ratio: 0.15    # re-diarized channel crosstalk above this -> quarantine variant
+  max_crosstalk_ratio: 0.15    # re-diarized channel crosstalk above this -> fails purity
   quarantine_dir: quarantine
+  # enforce: false -> keep every variant in the main dataset and record the
+  # crosstalk/pass result as metadata in each output JSON (nothing is dropped for
+  # purity reasons). Set true to drop failing variants into quarantine_dir instead.
+  enforce: false
 
 transcribe:
   model: large-v3

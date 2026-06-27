@@ -15,7 +15,8 @@ each → 16 audio tokens) plus 1 text token = **17 tokens/frame**.
 ## Pipeline
 
 ```
-[1] diarize        pyannote 3.1 → speaker segments (audio loaded @ 24 kHz mono)
+[1] diarize        pyannote 4.x (speaker-diarization-community-1) → speaker
+                   segments (audio loaded @ 24 kHz mono)
 [2] musicsuppress  Demucs vocals-stem substitution, but only on speech windows
                    whose non-vocal energy ratio exceeds the threshold
 [3] clean          DC removal, EBU R128 loudness (-23 LUFS), peak limit.
@@ -91,20 +92,30 @@ filter logic unit-testable.
 
 ### 1. Install
 
-Requires Python ≥ 3.10 and a CUDA-capable GPU for the ML stages.
+Requires Python 3.10–3.13 and a CUDA-capable GPU for the ML stages.
+
+The ML stack must be a matched torch-2.8 set (pyannote.audio 4.x hard-pins
+torch==2.8.0 / torchaudio==2.8.0 / torchcodec==0.7.0; whisperx needs torch~=2.8).
+The torch trio + torchcodec come from a CUDA index, so install them first:
 
 ```sh
-cd data-processing
-python -m pip install -r requirements.txt        # full stack
+cd Data-Processing-Moshi
+pip install torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 torchcodec==0.7.0 \
+  --index-url https://download.pytorch.org/whl/cu126   # cu128 for newer drivers
+python -m pip install -r requirements.txt        # rest of the stack
 # or, editable install with extras:
 python -m pip install -e ".[full,dev]"
 ```
 
+On a fresh Kaggle/Colab box, just run `bash setup_env.sh` (installs the whole
+matched set in one pass), then **restart the kernel/runtime**.
+
 ### 2. Get a HuggingFace token (one-time, for pyannote)
 
-pyannote's diarization model is gated. Accept the terms for
-[`pyannote/speaker-diarization-3.1`](https://huggingface.co/pyannote/speaker-diarization-3.1)
-on HuggingFace, create a token, then:
+pyannote 4.x's diarization model is gated. Accept the terms for
+[`pyannote/speaker-diarization-community-1`](https://hf.co/pyannote/speaker-diarization-community-1)
+**while logged in to HuggingFace** (this is what causes the `GatedRepoError: 401`
+if skipped), create a token, then:
 
 ```sh
 export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxx
