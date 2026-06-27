@@ -2,6 +2,12 @@
 
 Used for localized music/noise suppression: we keep the ``vocals`` stem and use
 the rest only to *measure* how much non-speech energy is present.
+
+NOTE: the upstream ``demucs`` package (facebookresearch/demucs) is no longer
+maintained.  This file targets ``demucs-infer`` -- a maintained inference-only
+fork with PyTorch 2.x support and an identical public API.  Install with:
+
+    pip install demucs-infer>=4.1.2
 """
 
 from __future__ import annotations
@@ -29,7 +35,12 @@ class NullSeparator(SourceSeparator):
 
 
 class DemucsSeparator(SourceSeparator):
-    """Wraps Demucs (htdemucs). Model loaded lazily and reused across files."""
+    """Wraps Demucs (htdemucs) via the ``demucs-infer`` package.
+
+    Model is loaded lazily and reused across files.  ``demucs-infer`` is a
+    drop-in inference replacement for the unmaintained ``demucs`` package and
+    exposes the same ``get_model`` / ``apply_model`` API.
+    """
 
     def __init__(self, model: str = "htdemucs", device: str = "cuda"):
         self.model_name = model
@@ -39,7 +50,14 @@ class DemucsSeparator(SourceSeparator):
     def _load(self):
         if self._model is not None:
             return self._model
-        from demucs.pretrained import get_model
+        try:
+            # demucs-infer (maintained fork) -- preferred
+            from demucs.pretrained import get_model
+        except ImportError as exc:
+            raise ImportError(
+                "Could not import demucs.pretrained. "
+                "Install the maintained inference fork: pip install demucs-infer>=4.1.2"
+            ) from exc
 
         model = get_model(self.model_name)
         model.to(self.device)

@@ -1,33 +1,43 @@
 # dataprep requirements
 # Install everything:        python -m pip install -r requirements.txt
 # Pure-logic / tests only:   python -m pip install -r requirements-core.txt
-# (see requirements-core.txt for the no-GPU subset)
+#
+# Python: >=3.10 required (pyannote.audio 4.x hard requirement)
+# Python: >=3.12 required for numpy>=2.5; use numpy<2.5 if on 3.10/3.11
+#
+# Last verified: 2026-06-27
 
 # --- Core (always required) ---
-numpy>=1.24
-pyyaml>=6.0
+numpy>=2.4,<2.6           # 2.5.0 released 2026-06-21; requires Python>=3.12
+                           # use numpy>=1.24,<2.5 if on Python 3.10/3.11
+pyyaml>=6.0.3              # 6.0.3 latest (Sep 2025), Python>=3.8
 
 # --- Audio I/O & DSP ---
-sphn==0.1.12          # same version moshi-finetune uses
-soundfile>=0.12       # fallback I/O when sphn is unavailable
-pyloudnorm>=0.1.1     # EBU R128 loudness normalisation
+# sphn 0.2.0 released Apr 2025 — requires cmake<4 pre-installed:
+#   pip install 'cmake<4' && CMAKE=$(which cmake) pip install sphn==0.2.0
+sphn==0.2.0                # updated from 0.1.12; api-compatible with moshi
+soundfile>=0.14.0          # 0.14.0 released 2026-06-06; dropped Python<=3.9
+pyloudnorm>=0.2.0          # 0.2.0 latest
 
 # --- ML stages (heavy; need a CUDA-capable env) ---
-# torch / torchaudio / torchvision MUST be installed together as a matched set
-# from the SAME CUDA index, e.g.:
-#   pip install torch==2.6.0 torchaudio==2.6.0 torchvision==0.21.0 \
-#       --index-url https://download.pytorch.org/whl/cu124
-# A mismatch makes the compiled extensions fail to load (libcudart.so.13 missing,
-# or "torchvision has no attribute 'extension' / circular import").
-torch==2.6            # pinned to match moshi-finetune
-torchaudio==2.6       # resampling; version must equal torch's
-torchvision==0.21     # transitive (pyannote->lightning->torchmetrics); pin to torch 2.6
-demucs>=4.0           # localized music/noise suppression (htdemucs)
-# pyannote >= 4.0 is required: 3.x calls hf_hub_download(use_auth_token=...),
-# a kwarg removed in huggingface_hub 1.0. 4.x uses the modern token= API and
-# reads HF_TOKEN from the environment. (No hub cap needed; 4.x supports hub 1.x.)
-pyannote.audio>=4.0   # diarization + channel-purity re-diarization
-whisperx>=3.8         # transcription + forced word alignment (needs pyannote 4.x)
+# OPTION A (recommended): keep moshi-finetune alignment
+torch==2.6
+torchaudio==2.6.0
+
+# OPTION B: latest PyTorch stack (verify moshi-finetune compat first)
+# pip install torch==2.11.0 torchaudio==2.11.0 \
+#   --index-url https://download.pytorch.org/whl/cu128
+
+# demucs: original Meta repo unmaintained; use inference-only fork
+# Drop-in replacement for htdemucs separation, PyTorch 2.x compatible
+demucs-infer>=4.1.2        # maintained fork; replaces demucs>=4.0
+
+pyannote.audio>=4.0.5      # 4.0.5 latest (2026-06-22); Python>=3.10 required
+                            # Breaking change vs 3.x: new model IDs on HuggingFace
+                            # Accept pyannote/speaker-diarization-community-1 license
+
+whisperx>=3.5.0             # 3.5.0 latest (2026-03-10)
+                            # WARNING: do NOT pin any 3.1.x — those are yanked
 
 # --- Dev / tests ---
-pytest>=7
+pytest>=9.0                 # 9.0.2 latest (2026-04-07)

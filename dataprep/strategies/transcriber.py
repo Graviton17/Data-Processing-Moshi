@@ -3,6 +3,12 @@
 Output is a list of ``[text, [start, end]]`` word entries; the stage attaches
 the speaker label. WhisperX transcribes at 16 kHz internally (its own resample);
 we feed it the cleaned channel directly.
+
+WhisperX >= 3.3 (Jan 2025+) switched its diarization backend to
+``pyannote/speaker-diarization-community-1``.  No code changes are needed
+here, but accepting that model's HuggingFace licence is required for the
+diarize-within-WhisperX path.  We do not use WhisperX's built-in diarization
+(we diarize separately in DiarizeStage), so this is not a concern.
 """
 
 from __future__ import annotations

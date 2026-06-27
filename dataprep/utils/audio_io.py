@@ -4,6 +4,19 @@ Loading tries ``sphn`` (same lib moshi-finetune uses), then ``soundfile``, then
 falls back to **ffmpeg**, which decodes formats libsndfile can't (mp3/m4a/webm/
 opus, or files with a misleading ``.wav`` extension). Heavy imports are local so
 this module stays importable for the pure-logic helpers even without audio libs.
+
+sphn 0.2.0 API notes
+--------------------
+* ``sphn.read(path)`` returns ``(ndarray, int)`` where ndarray shape is
+  ``(channels, samples)`` for multi-channel or ``(samples,)`` for mono.
+  This is unchanged from 0.1.x.
+* ``sphn.write_wav(path, samples, sr)`` signature is unchanged.
+* The batch helper ``sphn.durations([...])`` was removed in 0.2.0 -- use
+  per-file reads instead (see manifest.py).
+
+soundfile 0.14.0 note
+---------------------
+* Dropped Python <= 3.9 support. No API changes affecting this file.
 """
 
 from __future__ import annotations
@@ -22,7 +35,7 @@ def _load_libsndfile(path: str) -> AudioBuffer:
     try:
         import sphn
 
-        samples, sr = sphn.read(path)  # (channels, samples), float32
+        samples, sr = sphn.read(path)  # (channels, samples) or (samples,), float32
         return AudioBuffer(samples=np.asarray(samples, dtype=np.float32), sample_rate=sr)
     except Exception:
         import soundfile as sf
@@ -100,6 +113,8 @@ def save_wav(path: str | Path, buf: AudioBuffer) -> None:
     try:
         import sphn
 
+        # sphn.write_wav(path, samples, sr) -- signature unchanged in 0.2.0.
+        # samples must be (channels, samples) or (samples,) float32.
         sphn.write_wav(str(path), buf.samples, buf.sample_rate)
     except Exception:
         import soundfile as sf

@@ -38,6 +38,7 @@ def build_pipeline(config: Config) -> Pipeline:
         max_speakers=config.diarization.max_speakers,
         hf_token_env=config.diarization.hf_token_env,
         device=device,
+        exclusive=config.diarization.exclusive,  # new: forward exclusive flag
     )
     separator = (
         DemucsSeparator(model=config.music.demucs_model, device=device)

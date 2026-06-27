@@ -8,23 +8,34 @@ version = "0.1.0"
 description = "Raw mono conversations -> Moshi two-stream finetuning dataset"
 requires-python = ">=3.10"
 dependencies = [
-    "numpy>=1.24",
-    "pyyaml>=6.0",
+    # numpy>=2.5 requires Python>=3.12; use numpy<2.5 if on Python 3.10/3.11
+    "numpy>=2.4,<2.6",
+    "pyyaml>=6.0.3",
 ]
 
 [project.optional-dependencies]
 # Heavy ML stack for the actual processing stages.
 full = [
-    "sphn==0.1.12",
-    "soundfile>=0.12",
-    "pyloudnorm>=0.1.1",
+    # sphn 0.2.0: cmake<4 must be pre-installed (Opus build incompatibility with CMake 4.x)
+    # pip install 'cmake<4' && CMAKE=$(which cmake) pip install sphn==0.2.0
+    "sphn==0.2.0",
+    "soundfile>=0.14.0",        # 0.14.0: dropped Python<=3.9, added type annotations
+    "pyloudnorm>=0.2.0",
     "torch==2.6",
-    "torchaudio",
-    "demucs>=4.0",
-    "pyannote.audio>=3.1",
-    "whisperx>=3.1",
+    "torchaudio==2.6.0",
+    # demucs: original Meta repo is unmaintained (facebookresearch/demucs).
+    # demucs-infer is a maintained inference-only fork with PyTorch 2.x support
+    # and an identical public API (get_model / apply_model / model.sources).
+    "demucs-infer>=4.1.2",
+    # pyannote.audio 4.x: breaking changes vs 3.x
+    #   - new model: pyannote/speaker-diarization-community-1 (accept licence on HF)
+    #   - output API: (turn, speaker) 2-tuples, not itertracks() 3-tuples
+    #   - sox/soundfile I/O backends removed; only ffmpeg or in-memory audio
+    "pyannote.audio>=4.0.5",
+    # whisperx: do NOT pin 3.1.x (all 3.1.x releases on PyPI are yanked)
+    "whisperx>=3.5.0",
 ]
-dev = ["pytest>=7"]
+dev = ["pytest>=9.0"]
 
 [project.scripts]
 dataprep = "dataprep.cli:main"

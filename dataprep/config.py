@@ -13,16 +13,23 @@ from typing import Any
 
 @dataclass
 class DiarizationConfig:
-    model: str = "pyannote/speaker-diarization-3.1"
+    # Updated default: community-1 is the OSS model for pyannote.audio >= 4.0.
+    # speaker-diarization-3.1 requires pyannote.audio 3.x and will NOT work
+    # with the current library version.
+    model: str = "pyannote/speaker-diarization-community-1"
     min_speakers: int = 1
     max_speakers: int = 2
     hf_token_env: str = "HF_TOKEN"
+    # exclusive=True uses output.exclusive_speaker_diarization (non-overlapping),
+    # which simplifies STT reconciliation. False (default) uses speaker_diarization.
+    exclusive: bool = False
 
 
 @dataclass
 class MusicConfig:
     enabled: bool = True
     music_ratio_threshold: float = 0.5
+    # demucs-infer exposes the same model names as the original demucs package.
     demucs_model: str = "htdemucs"
     analysis_window_sec: float = 1.0
 

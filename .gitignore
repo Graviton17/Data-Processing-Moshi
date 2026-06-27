@@ -5,6 +5,7 @@ out/
 quarantine/
 *.jsonl
 report.json
+raw_audio/
 
 # --- audio / data (don't commit raw or generated audio) ---
 *.wav
