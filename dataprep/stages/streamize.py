@@ -43,13 +43,20 @@ class StreamizeStage(Stage):
         mono = ctx.audio.channel(0)
         spk_a, spk_b = ctx.main_pair
 
-        channels = {
-            spk_a: self._build_channel(mono, sr, spk_a, ctx.segments),
-            spk_b: self._build_channel(mono, sr, spk_b, ctx.segments),
-        }
-        ctx.metadata["speaker_channels"] = {
-            spk: AudioBuffer(samples=ch, sample_rate=sr) for spk, ch in channels.items()
-        }
+        # If SeparateSpeakersStage already produced clean per-speaker channels
+        # (target-speaker extraction), reuse them -- they keep overlapped speech
+        # clean, which masking can't. Otherwise fall back to masking the mono.
+        sep = ctx.metadata.get("speaker_channels")
+        if sep and spk_a in sep and spk_b in sep:
+            channels = {spk_a: sep[spk_a].channel(0), spk_b: sep[spk_b].channel(0)}
+        else:
+            channels = {
+                spk_a: self._build_channel(mono, sr, spk_a, ctx.segments),
+                spk_b: self._build_channel(mono, sr, spk_b, ctx.segments),
+            }
+            ctx.metadata["speaker_channels"] = {
+                spk: AudioBuffer(samples=ch, sample_rate=sr) for spk, ch in channels.items()
+            }
 
         orderings = [(spk_a, spk_b)]
         if self.config.augment.channel_swap:

@@ -2,6 +2,7 @@ from .base import Stage
 from .diarize import DiarizeStage
 from .music_suppress import MusicSuppressStage
 from .filters import FilterStage
+from .separate_speakers import SeparateSpeakersStage
 from .streamize import StreamizeStage
 from .clean import CleanStage
 from .purity import PurityStage
@@ -13,6 +14,7 @@ __all__ = [
     "DiarizeStage",
     "MusicSuppressStage",
     "FilterStage",
+    "SeparateSpeakersStage",
     "StreamizeStage",
     "CleanStage",
     "PurityStage",

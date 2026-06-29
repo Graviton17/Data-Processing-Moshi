@@ -55,6 +55,26 @@ class CleanupConfig:
 
 
 @dataclass
+class SeparationConfig:
+    # Off by default: opt in for high-overlap mono sources (e.g. debate podcasts)
+    # to get clean per-speaker channels WITHOUT dropping overlapped speech.
+    enabled: bool = False
+    sep_model: str = "speechbrain/sepformer-wsj02mix"
+    embedding_model: str = "speechbrain/spkrec-ecapa-voxceleb"
+    # model_sr is the separator's native rate (8 kHz for wsj02mix). Prefer a
+    # 16 kHz separator + model_sr=16000 for Mimi-quality audio; 8 kHz caps the
+    # channel bandwidth at 4 kHz.
+    model_sr: int = 8000
+    embedding_sr: int = 16000
+    # overlap_only: separate just the spans where both speakers talk at once and
+    # mask the (already-clean) solo speech. False = run the extractor end-to-end.
+    overlap_only: bool = True
+    chunk_seconds: float = 10.0
+    enroll_max_sec: float = 20.0   # cap on solo speech gathered per speaker print
+    enroll_min_sec: float = 3.0    # below this a speaker can't be enrolled -> skip
+
+
+@dataclass
 class AugmentConfig:
     channel_swap: bool = True
 
@@ -92,6 +112,7 @@ class Config:
     music: MusicConfig = field(default_factory=MusicConfig)
     filters: FiltersConfig = field(default_factory=FiltersConfig)
     cleanup: CleanupConfig = field(default_factory=CleanupConfig)
+    separation: SeparationConfig = field(default_factory=SeparationConfig)
     augment: AugmentConfig = field(default_factory=AugmentConfig)
     purity: PurityConfig = field(default_factory=PurityConfig)
     transcribe: TranscribeConfig = field(default_factory=TranscribeConfig)

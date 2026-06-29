@@ -14,6 +14,7 @@ from .stages import (
     FilterStage,
     MusicSuppressStage,
     PurityStage,
+    SeparateSpeakersStage,
     StreamizeStage,
     TranscribeStage,
     WriteOutputsStage,
@@ -23,6 +24,7 @@ from .strategies import (
     EnergyRatioMusicDetector,
     NullSeparator,
     PyannoteDiarizer,
+    SpeechBrainTSExtractor,
     WhisperXTranscriber,
 )
 from .utils.cache import Cache
@@ -64,6 +66,21 @@ def build_pipeline(config: Config) -> Pipeline:
         MusicSuppressStage(separator, detector, config),
         CleanStage(config),
         FilterStage(config),
+    ]
+    # Optional: target-speaker extraction -> clean channels that PRESERVE overlap
+    # (needed for Moshi full-duplex). When off, StreamizeStage masks the mono.
+    if config.separation.enabled:
+        extractor = SpeechBrainTSExtractor(
+            sep_model=config.separation.sep_model,
+            embedding_model=config.separation.embedding_model,
+            model_sr=config.separation.model_sr,
+            embedding_sr=config.separation.embedding_sr,
+            device=device,
+            chunk_seconds=config.separation.chunk_seconds,
+            cache_dir=f"{config.cache_dir}/speechbrain",
+        )
+        stages.append(SeparateSpeakersStage(extractor, config))
+    stages += [
         StreamizeStage(config),
         PurityStage(diarizer, config),
         TranscribeStage(transcriber, config, cache),
