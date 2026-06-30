@@ -9,12 +9,12 @@ diarization:
   # to community-1 (requires pyannote.audio >= 4.0, Python >= 3.10).
   # Accept the licence at: https://hf.co/pyannote/speaker-diarization-community-1
   model: pyannote/speaker-diarization-community-1
-  min_speakers: 1
+  min_speakers: 2           # two-host podcast: pin to exactly 2 speakers (was 1)
   max_speakers: 2           # ask pyannote for at most 2; extras dropped at chunk level
   hf_token_env: HF_TOKEN    # env var holding your HuggingFace token
   # exclusive: true uses output.exclusive_speaker_diarization (non-overlapping turns).
   # Simpler for STT reconciliation. Default false keeps all overlapping turns.
-  exclusive: false
+  exclusive: false          # KEEP false: preserve overlap for Moshi full-duplex training
 
 music:
   enabled: true
@@ -35,6 +35,21 @@ cleanup:
   peak_limit_db: -1.0
   pre_emphasis: false          # keep OFF for Mimi
   remove_dc_offset: true
+
+separation:
+  # Target-speaker extraction: produce CLEAN per-speaker channels while KEEPING
+  # overlapped speech (masking can't -- it leaves both voices in each channel,
+  # which fails purity). Needed for Moshi full-duplex on high-overlap mono
+  # sources (e.g. two-host debate podcasts). Requires: pip install speechbrain
+  enabled: false
+  sep_model: speechbrain/sepformer-wsj02mix
+  embedding_model: speechbrain/spkrec-ecapa-voxceleb
+  model_sr: 8000               # separator native rate; use a 16k model+16000 for Mimi quality
+  embedding_sr: 16000
+  overlap_only: true           # separate only the both-talking spans; mask solo speech
+  chunk_seconds: 10.0
+  enroll_max_sec: 20.0
+  enroll_min_sec: 3.0
 
 augment:
   channel_swap: true           # emit both A=agent and B=agent variants
